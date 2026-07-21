@@ -31,9 +31,22 @@ MODELS_DIR = Path(__file__).parent / "models"
 
 app = FastAPI(title="ATLAS ML Service", version="1.0.0")
 
+# ── CORS ──────────────────────────────────────────────────────────
+# Explicit origins for local dev + your production Vercel domain.
+# IMPORTANT: replace the placeholder below with your real Vercel URL
+# (check your Vercel project dashboard for the exact domain).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://atlas-frontend.vercel.app",  # <-- REPLACE with your actual production domain
+    ],
+    # Also allow any Vercel preview deployment (e.g. atlas-frontend-git-branch-yourname.vercel.app,
+    # or atlas-frontend-<hash>.vercel.app) so preview builds work too, without needing to add
+    # every preview URL by hand.
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,6 +82,18 @@ def require_models():
             status_code=503,
             detail=f"Models not trained yet. Run `python train.py` first. ({LOAD_ERROR})",
         )
+
+
+@app.get("/")
+def root():
+    # Friendly root route so hitting the bare Render URL doesn't show
+    # a bare {"detail":"Not Found"} — purely cosmetic, doesn't affect the app.
+    return {
+        "service": "ATLAS ML Service",
+        "status": "ok" if MODELS_LOADED else "models_missing",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 
 @app.get("/health")
